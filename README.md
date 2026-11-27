@@ -324,12 +324,13 @@ case *yollavoice.UnknownEvent:
 ### Events
 
 `EventCallInitiated`, `EventCallAnswered`, `EventCallHeld`, `EventCallUnheld`, `EventCallHoldFailed`,
-`EventCallCompleted`, `EventCallExpired`, `EventCallQuality`, `EventBalanceLow`, `EventWebhookTest`
+`EventCallCompleted`, `EventCallBilled`, `EventCallExpired`, `EventCallQuality`, `EventBalanceLow`, `EventWebhookTest`
 (`call.initiated`, `call.answered`, `call.held`, `call.unheld`, `call.hold_failed`, `call.completed`,
-`call.expired`, `call.quality`, `balance.low`, `webhook.test`).
+`call.billed`, `call.expired`, `call.quality`, `balance.low`, `webhook.test`).
 
 Every event has `ID()`, `Type()`, `Seq()` and `CreatedAt()`. All `call.*` types except `call.quality` arrive as
-`*CallEvent`.
+`*CallEvent`. `call.billed` follows `call.completed` once per call, when billing has applied
+the final record: its `Call.Price` and `Call.BilledDuration` are final, and `Seq()` continues the call's numbering.
 
 - **Retries and duplicates.** The platform retries a delivery when your endpoint answers non-2xx or does not
   answer. `ID()` is the same across attempts, and `X-Voice-Delivery-Id` is new for each attempt. Deduplicate by

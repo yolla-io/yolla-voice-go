@@ -130,9 +130,32 @@
       }
     },
     {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K9A",
+      "type": "call.billed",
+      "seq": 7,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "completed",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z",
+          "billedDuration": 61,
+          "price": {
+            "amount": "0.122",
+            "currency": "USD"
+          }
+        }
+      }
+    },
+    {
       "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K97",
       "type": "call.expired",
-      "seq": 7,
+      "seq": 8,
       "createdAt": "2026-11-23T10:15:00.000Z",
       "data": {
         "call": {

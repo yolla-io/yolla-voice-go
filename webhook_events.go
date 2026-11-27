@@ -14,6 +14,7 @@ const (
 	EventCallUnheld     = "call.unheld"
 	EventCallHoldFailed = "call.hold_failed"
 	EventCallCompleted  = "call.completed"
+	EventCallBilled     = "call.billed"
 	EventCallExpired    = "call.expired"
 	EventCallQuality    = "call.quality"
 	EventBalanceLow     = "balance.low"
@@ -199,7 +200,7 @@ func ParseWebhookEvent(body []byte) (Event, error) {
 	)
 	switch env.typ {
 	case EventCallInitiated, EventCallAnswered, EventCallHeld, EventCallUnheld, EventCallHoldFailed,
-		EventCallCompleted, EventCallExpired:
+		EventCallCompleted, EventCallBilled, EventCallExpired:
 		e := &CallEvent{eventEnvelope: env}
 		err, ev = json.Unmarshal(w.Data, &e.Data), e
 	case EventCallQuality:

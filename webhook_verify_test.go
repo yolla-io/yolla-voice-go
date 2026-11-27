@@ -75,7 +75,7 @@ func TestVerifyFixtures(t *testing.T) {
 	f := loadWebhookFixture(t)
 	fixedNow(t, f.Timestamp)
 	wantTypes := []string{EventCallInitiated, EventCallAnswered, EventCallHeld, EventCallUnheld, EventCallHoldFailed,
-		EventCallCompleted, EventCallExpired, EventCallQuality, EventBalanceLow, EventWebhookTest}
+		EventCallCompleted, EventCallBilled, EventCallExpired, EventCallQuality, EventBalanceLow, EventWebhookTest}
 	if len(f.Events) != len(wantTypes) {
 		t.Fatalf("fixture has %d events", len(f.Events))
 	}
@@ -101,6 +101,10 @@ func TestVerifyFixtures(t *testing.T) {
 			}
 			if wantTypes[i] == EventCallHeld && (*e.Data.Hold.Action != HoldActionHold || *e.Data.Hold.Leg != HoldLegCaller) {
 				t.Fatalf("hold %+v", e.Data.Hold)
+			}
+			if wantTypes[i] == EventCallBilled && (e.Data.Call.Price == nil || e.Data.Call.Price.Amount != "0.122" ||
+				e.Data.Call.BilledDuration == nil || *e.Data.Call.BilledDuration != 61) {
+				t.Fatalf("billed %+v", e.Data.Call)
 			}
 		case *QualityEvent:
 			if e.Data.CallID == "" || e.Data.Quality.MOSEstimate == nil || *e.Data.Quality.MOSEstimate != 4.1 ||

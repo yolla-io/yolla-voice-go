@@ -428,6 +428,7 @@
                   "call.unheld",
                   "call.hold_failed",
                   "call.completed",
+                  "call.billed",
                   "call.expired"
                 ],
                 "type": "string"
@@ -1258,6 +1259,9 @@
       "$ref": "#/components/pathItems/BalanceWebhook"
     },
     "call.answered": {
+      "$ref": "#/components/pathItems/CallWebhook"
+    },
+    "call.billed": {
       "$ref": "#/components/pathItems/CallWebhook"
     },
     "call.completed": {

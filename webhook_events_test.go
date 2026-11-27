@@ -12,7 +12,7 @@ import (
 func TestEventConstants(t *testing.T) {
 	want := map[string]string{
 		EventCallInitiated: "call.initiated", EventCallAnswered: "call.answered", EventCallHeld: "call.held",
-		EventCallUnheld: "call.unheld", EventCallHoldFailed: "call.hold_failed", EventCallCompleted: "call.completed",
+		EventCallUnheld: "call.unheld", EventCallHoldFailed: "call.hold_failed", EventCallCompleted: "call.completed", EventCallBilled: "call.billed",
 		EventCallExpired: "call.expired", EventCallQuality: "call.quality", EventBalanceLow: "balance.low",
 		EventWebhookTest: "webhook.test",
 	}
@@ -137,5 +137,17 @@ func TestParseUnknownEventLenientEnvelope(t *testing.T) {
 		if _, err := ParseWebhookEvent([]byte(body)); err == nil {
 			t.Fatalf("%s: want an error", body)
 		}
+	}
+}
+
+func TestParseCallBilled(t *testing.T) {
+	ev, err := ParseWebhookEvent([]byte(`{"id":"e9","type":"call.billed","seq":7,"createdAt":"2026-11-23T10:15:05Z","data":{"call":{"id":"call_1","status":"completed","billedDuration":42,"price":{"amount":"0.1260","currency":"USD"}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, ok := ev.(*CallEvent)
+	if !ok || ev.Type() != EventCallBilled || ev.Seq() != 7 || c.Data.Call.Price == nil ||
+		c.Data.Call.BilledDuration == nil || *c.Data.Call.BilledDuration != 42 {
+		t.Fatalf("%#v", ev)
 	}
 }
