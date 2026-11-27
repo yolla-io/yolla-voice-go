@@ -89,6 +89,10 @@ func TestCreateIdempotencyKeys(t *testing.T) {
 	if _, err := c.Calls.Create(context.Background(), validParams(), WithIdempotencyKey(strings.Repeat("k", 128))); err != nil {
 		t.Fatal(err)
 	}
+	// The limit counts characters, not bytes: 128 two-byte characters pass.
+	if _, err := c.Calls.Create(context.Background(), validParams(), WithIdempotencyKey(strings.Repeat("é", 128))); err != nil {
+		t.Fatal(err)
+	}
 	n := rt.calls()
 	_, err := c.Calls.Create(context.Background(), validParams(), WithIdempotencyKey(strings.Repeat("k", 129)))
 	if !errors.Is(err, ErrValidation) || rt.calls() != n {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -104,8 +105,18 @@ type ConnectionError struct {
 	Err error
 }
 
+// Error describes the failure without the request URL, whose query may hold an end user's id.
+// Unwrap returns the full transport error.
 func (e *ConnectionError) Error() string {
-	return "yollavoice: connection error: " + e.Err.Error()
+	const prefix = "yollavoice: connection error"
+	if e.Err == nil {
+		return prefix
+	}
+	var urlErr *url.Error
+	if errors.As(e.Err, &urlErr) && urlErr.Err != nil {
+		return prefix + ": " + urlErr.Op + ": " + urlErr.Err.Error()
+	}
+	return prefix + ": " + e.Err.Error()
 }
 
 // Unwrap returns the transport error.
@@ -186,22 +197,23 @@ func parseAPIError(status int, header http.Header, body []byte, now time.Time) *
 		e.RequestID = header.Get("X-Request-Id")
 	}
 	if status == http.StatusTooManyRequests {
-		e.RetryAfter = parseRetryAfter(header.Get("Retry-After"), now)
+		e.RetryAfter, _ = parseRetryAfter(header.Get("Retry-After"), now)
 	}
 	return e
 }
 
-// parseRetryAfter reads delay-seconds or an HTTP date; unreadable values give 0.
-func parseRetryAfter(value string, now time.Time) time.Duration {
+// parseRetryAfter reads delay-seconds or an HTTP date. ok is false for an absent or unreadable
+// value; a zero delay or a past date gives (0, true).
+func parseRetryAfter(value string, now time.Time) (d time.Duration, ok bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return 0
+		return 0, false
 	}
 	if secs, err := strconv.ParseUint(value, 10, 31); err == nil {
-		return time.Duration(secs) * time.Second
+		return time.Duration(secs) * time.Second, true
 	}
 	if t, err := http.ParseTime(value); err == nil {
-		return max(0, t.Sub(now))
+		return max(0, t.Sub(now)), true
 	}
-	return 0
+	return 0, false
 }

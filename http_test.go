@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,14 +21,14 @@ func TestHTTPRequestShape(t *testing.T) {
 	rt := script(respond(200, `{"id":"c1"}`))
 	tr := newTestTransport(rt, &sleeper{})
 	var out pingResult
-	status, header, err := tr.do(context.Background(), request{
+	status, err := tr.do(context.Background(), request{
 		method: http.MethodPost,
 		path:   "/v1/calls/a%2Fb",
 		query:  url.Values{"limit": {"10"}, "status": {"completed"}},
 		body:   map[string]string{"to": "14155550100"},
 		header: http.Header{"Idempotency-Key": {"key-1"}},
 	}, &out)
-	if err != nil || status != 200 || out.ID != "c1" || header.Get("Content-Type") != "application/json" {
+	if err != nil || status != 200 || out.ID != "c1" {
 		t.Fatalf("do: status %d, out %+v, err %v", status, out, err)
 	}
 	req := rt.requests[0]
@@ -40,7 +41,7 @@ func TestHTTPRequestShape(t *testing.T) {
 	wantHeaders := map[string]string{
 		"Authorization":   "Bearer sk_test_secret",
 		"Accept":          "application/json",
-		"User-Agent":      "yolla-voice-go/" + Version + " go/" + runtime.Version(),
+		"User-Agent":      "yolla-voice-go/" + Version + " go/" + strings.TrimPrefix(runtime.Version(), "go"),
 		"Content-Type":    "application/json",
 		"Idempotency-Key": "key-1",
 	}
@@ -48,6 +49,10 @@ func TestHTTPRequestShape(t *testing.T) {
 		if got := req.Header.Get(k); got != v {
 			t.Errorf("header %s = %q, want %q", k, got, v)
 		}
+	}
+	// The spec format is yolla-voice-go/<Version> go/<runtime version>, like Node's node/<version>.
+	if ua := req.Header.Get("User-Agent"); !regexp.MustCompile(`^yolla-voice-go/[0-9]+\.[0-9]+\.[0-9]+ go/[0-9]+\.[0-9]+`).MatchString(ua) {
+		t.Errorf("User-Agent %q does not match yolla-voice-go/<Version> go/<version>", ua)
 	}
 	if rt.bodies[0] != `{"to":"14155550100"}` {
 		t.Errorf("body %q", rt.bodies[0])
@@ -58,7 +63,7 @@ func TestHTTPRequestShape(t *testing.T) {
 func TestHTTPNoBodyNoContentType(t *testing.T) {
 	rt := script(respond(200, `{"id":"c1"}`))
 	tr := newTestTransport(rt, &sleeper{})
-	if _, _, err := tr.do(context.Background(), request{method: http.MethodGet, path: "/v1/balance"}, nil); err != nil {
+	if _, err := tr.do(context.Background(), request{method: http.MethodGet, path: "/v1/balance"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	req := rt.requests[0]
@@ -86,7 +91,7 @@ func TestHTTPSuccessDecoding(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			rt := script(respond(c.status, c.body, "Content-Type", c.ctype))
 			var out pingResult
-			status, _, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, &out)
+			status, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, &out)
 			if err != nil || status != c.status || out.ID != "x" {
 				t.Errorf("status %d, out %+v, err %v", status, out, err)
 			}
@@ -103,6 +108,7 @@ func TestHTTPInvalidResponse(t *testing.T) {
 		{"empty", respond(200, "", "X-Request-Id", "req-9")},
 		{"html", respond(200, "<html></html>", "Content-Type", "text/html", "X-Request-Id", "req-9")},
 		{"malformed", respond(200, `{"id":`, "X-Request-Id", "req-9")},
+		{"null", respond(200, " null\n", "X-Request-Id", "req-9")},
 		{"no content type", func(*http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 200, Header: http.Header{"X-Request-Id": {"req-9"}},
 				Body: io.NopCloser(strings.NewReader(`{"id":"x"}`))}, nil
@@ -114,7 +120,7 @@ func TestHTTPInvalidResponse(t *testing.T) {
 			rt := script(c.step)
 			sl := &sleeper{}
 			var out pingResult
-			status, _, err := newTestTransport(rt, sl).do(context.Background(), request{method: "GET", path: "/x"}, &out)
+			status, err := newTestTransport(rt, sl).do(context.Background(), request{method: "GET", path: "/x"}, &out)
 			if !errors.Is(err, ErrInvalidResponse) {
 				t.Fatalf("err %v, want ErrInvalidResponse", err)
 			}
@@ -135,7 +141,7 @@ func TestHTTPInvalidResponse(t *testing.T) {
 
 func TestHTTPEmptyBodyWithoutOut(t *testing.T) {
 	rt := script(respond(204, ""))
-	status, _, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "POST", path: "/x"}, nil)
+	status, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "POST", path: "/x"}, nil)
 	if err != nil || status != 204 {
 		t.Errorf("status %d, err %v", status, err)
 	}
@@ -144,14 +150,14 @@ func TestHTTPEmptyBodyWithoutOut(t *testing.T) {
 
 func TestHTTPErrorBody(t *testing.T) {
 	rt := script(respond(404, `{"error":{"code":"call_not_found","message":"Call not found","requestId":"req-1"}}`))
-	_, _, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, &pingResult{})
+	_, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, &pingResult{})
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.Code != "call_not_found" || apiErr.RequestID != "req-1" || !errors.Is(err, ErrNotFound) {
 		t.Errorf("err %v", err)
 	}
 	// A JSON-shaped body with a non-JSON content type is not parsed.
 	rt = script(respond(400, `{"error":{"code":"x","message":"y"}}`, "Content-Type", "text/plain", "X-Request-Id", "req-2"))
-	_, _, err = newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, nil)
+	_, err = newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "GET", path: "/x"}, nil)
 	if !errors.As(err, &apiErr) || apiErr.Code != "unknown_error" || apiErr.RequestID != "req-2" {
 		t.Errorf("err %v", err)
 	}
@@ -160,7 +166,7 @@ func TestHTTPErrorBody(t *testing.T) {
 
 func TestHTTPUnmarshalableBody(t *testing.T) {
 	rt := script(respond(200, `{}`))
-	_, _, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "POST", path: "/x", body: make(chan int)}, nil)
+	_, err := newTestTransport(rt, &sleeper{}).do(context.Background(), request{method: "POST", path: "/x", body: make(chan int)}, nil)
 	if err == nil || rt.calls() != 0 {
 		t.Errorf("err %v, calls %d", err, rt.calls())
 	}
@@ -171,7 +177,7 @@ func TestHTTPUserClientRedirect(t *testing.T) {
 	user := &http.Client{Transport: rt}
 	tr := newTransport(user, "sk_test_secret", 0, 2)
 	tr.sleep = (&sleeper{}).sleep
-	_, _, err := tr.do(context.Background(), request{method: "GET", path: "/x"}, &pingResult{})
+	_, err := tr.do(context.Background(), request{method: "GET", path: "/x"}, &pingResult{})
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.Status != 302 {
 		t.Fatalf("err %v, want *APIError 302", err)
@@ -207,7 +213,7 @@ func TestHTTPConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var out pingResult
-			if _, _, err := tr.do(context.Background(), request{method: "GET", path: "/x"}, &out); err != nil || out.ID != "x" {
+			if _, err := tr.do(context.Background(), request{method: "GET", path: "/x"}, &out); err != nil || out.ID != "x" {
 				t.Errorf("err %v, out %+v", err, out)
 			}
 		}()

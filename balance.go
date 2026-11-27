@@ -14,17 +14,10 @@ func (s *BalanceService) Get(ctx context.Context, opts ...RequestOption) (*Balan
 	if err != nil {
 		return nil, err
 	}
-	req := request{method: http.MethodGet, path: "/v1/balance"}
-	rc.apply(&req)
+	req := request{requestConfig: rc, method: http.MethodGet, path: "/v1/balance"}
 	var out Balance
-	if _, _, err := s.t.do(ctx, req, &out); err != nil {
+	if _, err := s.t.do(ctx, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
-
-// String returns a redacted description.
-func (BalanceService) String() string { return redacted }
-
-// GoString returns a redacted description.
-func (BalanceService) GoString() string { return redacted }

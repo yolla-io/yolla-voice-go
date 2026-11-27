@@ -2,6 +2,8 @@ package yollavoice
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -20,9 +22,6 @@ type Client struct {
 	Balance  *BalanceService
 	Pricing  *PricingService
 	Webhooks *WebhooksService
-
-	t              *transport
-	webhookSecrets []string
 }
 
 // CallsService groups the call operations.
@@ -56,12 +55,10 @@ func NewClient(opts ...Option) (*Client, error) {
 	}
 	t := newTransport(cfg.httpClient, cfg.apiKey, cfg.timeout, cfg.maxRetries)
 	return &Client{
-		Calls:          &CallsService{t: t},
-		Balance:        &BalanceService{t: t},
-		Pricing:        &PricingService{t: t},
-		Webhooks:       &WebhooksService{secrets: cfg.webhookSecrets},
-		t:              t,
-		webhookSecrets: cfg.webhookSecrets,
+		Calls:    &CallsService{t: t},
+		Balance:  &BalanceService{t: t},
+		Pricing:  &PricingService{t: t},
+		Webhooks: &WebhooksService{secrets: cfg.webhookSecrets},
 	}, nil
 }
 
@@ -74,27 +71,40 @@ func (c Client) GoString() string { return redacted }
 // MarshalJSON returns a redacted JSON string.
 func (c Client) MarshalJSON() ([]byte, error) { return []byte(`"` + redacted + `"`), nil }
 
-// String returns a redacted description, so the API key never reaches logs.
-func (t transport) String() string { return "yollavoice.transport{redacted}" }
+// Format implements fmt.Formatter: every verb (%d and %x included) prints the redacted
+// description, so the API key and webhook secrets never reach logs.
+func (c Client) Format(s fmt.State, _ rune) { writeRedacted(s, redacted) }
 
-// GoString returns a redacted description.
-func (t transport) GoString() string { return t.String() }
+// Format implements fmt.Formatter with a redacted description for every verb.
+func (CallsService) Format(s fmt.State, _ rune) {
+	writeRedacted(s, "yollavoice.CallsService{redacted}")
+}
 
-// String returns a redacted description.
-func (CallsService) String() string { return redacted }
+// Format implements fmt.Formatter with a redacted description for every verb.
+func (BalanceService) Format(s fmt.State, _ rune) {
+	writeRedacted(s, "yollavoice.BalanceService{redacted}")
+}
 
-// GoString returns a redacted description.
-func (CallsService) GoString() string { return redacted }
+// Format implements fmt.Formatter with a redacted description for every verb.
+func (PricingService) Format(s fmt.State, _ rune) {
+	writeRedacted(s, "yollavoice.PricingService{redacted}")
+}
 
-// String returns a redacted description, so webhook secrets never reach logs.
-func (WebhooksService) String() string { return redacted }
+// Format implements fmt.Formatter with a redacted description for every verb, so webhook
+// secrets never reach logs.
+func (WebhooksService) Format(s fmt.State, _ rune) {
+	writeRedacted(s, "yollavoice.WebhooksService{redacted}")
+}
 
-// GoString returns a redacted description.
-func (WebhooksService) GoString() string { return redacted }
+// Format keeps the API key out of every fmt verb.
+func (transport) Format(s fmt.State, _ rune) { writeRedacted(s, "yollavoice.transport{redacted}") }
 
-// Verify checks a webhook request with the client's webhook secrets (or YOLLA_WEBHOOK_SECRET, which
-// the client read when it was created). It returns an error when the client has no secret. See
-// VerifyWebhook.
+// writeRedacted writes text for a Format method; fmt.State has no error to report.
+func writeRedacted(s fmt.State, text string) { _, _ = io.WriteString(s, text) }
+
+// Verify checks a webhook request with the client's webhook secrets. A client created without a
+// secret reads YOLLA_WEBHOOK_SECRET at call time instead, and Verify returns an error when that
+// is not set either. See VerifyWebhook.
 func (w *WebhooksService) Verify(body []byte, header http.Header, opts ...VerifyOption) (Event, error) {
 	secrets, err := resolveSecrets(w.secrets)
 	if err != nil {
@@ -103,8 +113,9 @@ func (w *WebhooksService) Verify(body []byte, header http.Header, opts ...Verify
 	return VerifyWebhook(body, header, secrets, opts...)
 }
 
-// Sign signs a payload for tests with the client's first webhook secret. It returns an error when
-// the client has no secret. See SignWebhook.
+// Sign signs a payload for tests with the client's first webhook secret. A client created without
+// a secret reads YOLLA_WEBHOOK_SECRET at call time instead, and Sign returns an error when that is
+// not set either. See SignWebhook.
 func (w *WebhooksService) Sign(payload any, opts ...SignOption) ([]byte, http.Header, error) {
 	secrets, err := resolveSecrets(w.secrets)
 	if err != nil {

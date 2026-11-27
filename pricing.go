@@ -19,17 +19,10 @@ func (s *PricingService) GetNumberPrice(ctx context.Context, number string, opts
 	if err != nil {
 		return nil, err
 	}
-	req := request{method: http.MethodGet, path: "/v1/pricing/numbers/" + url.PathEscape(number)}
-	rc.apply(&req)
+	req := request{requestConfig: rc, method: http.MethodGet, path: "/v1/pricing/numbers/" + url.PathEscape(number)}
 	var out NumberPrice
-	if _, _, err := s.t.do(ctx, req, &out); err != nil {
+	if _, err := s.t.do(ctx, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
-
-// String returns a redacted description.
-func (PricingService) String() string { return redacted }
-
-// GoString returns a redacted description.
-func (PricingService) GoString() string { return redacted }

@@ -11,10 +11,11 @@ const (
 	maxRetryAfter = 60 * time.Second
 )
 
-// backoff returns the delay before the retry that follows attempt (1-based). A positive retryAfter
-// (capped at 60 s) replaces the full-jitter exponential backoff from 0.5 s capped at 8 s.
-func backoff(attempt int, retryAfter time.Duration, rand func() float64) time.Duration {
-	if retryAfter > 0 {
+// backoff returns the delay before the retry that follows attempt (1-based). A present
+// retryAfter (capped at 60 s, possibly 0) replaces the full-jitter exponential backoff from 0.5 s
+// capped at 8 s.
+func backoff(attempt int, retryAfter time.Duration, hasRetryAfter bool, rand func() float64) time.Duration {
+	if hasRetryAfter {
 		return min(retryAfter, maxRetryAfter)
 	}
 	ceiling := maxBackoff

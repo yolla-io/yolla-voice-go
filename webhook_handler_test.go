@@ -297,6 +297,20 @@ func TestHandlerPanicWithError(t *testing.T) {
 	}
 }
 
+func TestHandlerPassesAbortHandlerPanic(t *testing.T) {
+	body, hdr := fixtureBody(t, EventCallCompleted)
+	h := newHandler(t, WebhookHandlerConfig{
+		On: map[string]WebhookFunc{EventCallCompleted: func(context.Context, Event) error { panic(http.ErrAbortHandler) }},
+	})
+	defer func() {
+		if p := recover(); p != http.ErrAbortHandler {
+			t.Fatalf("recovered %v, want http.ErrAbortHandler", p)
+		}
+	}()
+	doPost(h, body, hdr)
+	t.Fatal("ServeHTTP returned; the abort panic was swallowed")
+}
+
 func TestHandlerParallel(t *testing.T) {
 	body, hdr := fixtureBody(t, EventCallCompleted)
 	var n atomic.Int64

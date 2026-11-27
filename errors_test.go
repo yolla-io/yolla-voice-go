@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +93,17 @@ func TestRetryAfter(t *testing.T) {
 	}
 }
 
+func TestParseRetryAfterPresence(t *testing.T) {
+	for value, wantOK := range map[string]bool{
+		"0": true, "3": true, testNow.Add(-time.Minute).Format(http.TimeFormat): true,
+		"": false, "soon": false, "-5": false,
+	} {
+		if _, ok := parseRetryAfter(value, testNow); ok != wantOK {
+			t.Errorf("%q: ok = %v, want %v", value, ok, wantOK)
+		}
+	}
+}
+
 func TestAPIErrorString(t *testing.T) {
 	body := []byte(`{"unexpected":"sk_live_supersecret"}`)
 	e := parseAPIError(500, http.Header{"X-Request-Id": {"req_9"}}, body, testNow)
@@ -128,6 +140,17 @@ func TestErrorsAsThroughWrapping(t *testing.T) {
 	}
 	if !strings.Contains(conn.Error(), "dial tcp: refused") || !strings.HasPrefix(conn.Error(), "yollavoice: ") {
 		t.Errorf("got %q", conn.Error())
+	}
+	if got := (&ConnectionError{}).Error(); got != "yollavoice: connection error" {
+		t.Errorf("zero ConnectionError: %q", got)
+	}
+	urlErr := &url.Error{Op: "Get", URL: "https://platform.yolla.io/api/v1/calls?externalUserId=user-42", Err: cause}
+	withURL := &ConnectionError{Err: urlErr}
+	if got := withURL.Error(); got != "yollavoice: connection error: Get: dial tcp: refused" {
+		t.Errorf("url error text: %q", got)
+	}
+	if !errors.Is(withURL, urlErr) {
+		t.Error("Unwrap must keep the full url.Error")
 	}
 	for _, s := range []error{ErrServer, ErrTimeout, ErrInvalidResponse} {
 		if errors.Is(conn, s) {

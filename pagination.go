@@ -87,10 +87,9 @@ func (s *CallsService) List(ctx context.Context, params ListCallsParams, opts ..
 	if params.Limit < 0 {
 		return nil, newValidationError("Limit must not be negative")
 	}
-	req := request{method: http.MethodGet, path: "/v1/calls", query: listQuery(params)}
-	rc.apply(&req)
+	req := request{requestConfig: rc, method: http.MethodGet, path: "/v1/calls", query: listQuery(params)}
 	var out listCallsResponse
-	if _, _, err := s.t.do(ctx, req, &out); err != nil {
+	if _, err := s.t.do(ctx, req, &out); err != nil {
 		return nil, err
 	}
 	page := &CallPage{Items: out.Items, svc: s, params: params, opts: opts}

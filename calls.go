@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"unicode/utf8"
 )
 
 const maxIdempotencyKeyLength = 128
@@ -41,7 +42,7 @@ func (s *CallsService) Create(ctx context.Context, params CreateCallParams, opts
 		return nil, err
 	}
 	key := rc.idempotencyKey
-	if len(key) > maxIdempotencyKeyLength {
+	if utf8.RuneCountInString(key) > maxIdempotencyKeyLength {
 		return nil, newValidationError(fmt.Sprintf("idempotency key must be at most %d characters", maxIdempotencyKeyLength))
 	}
 	if err := validateNumber("To", params.To); err != nil {
@@ -53,19 +54,17 @@ func (s *CallsService) Create(ctx context.Context, params CreateCallParams, opts
 		}
 	}
 	if key == "" {
-		if key, err = newUUID(); err != nil {
-			return nil, err
-		}
+		key = newUUID()
 	}
 	req := request{
-		method: http.MethodPost,
-		path:   "/v1/calls",
-		body:   params,
-		header: http.Header{"Idempotency-Key": {key}},
+		requestConfig: rc,
+		method:        http.MethodPost,
+		path:          "/v1/calls",
+		body:          params,
+		header:        http.Header{"Idempotency-Key": {key}},
 	}
-	rc.apply(&req)
 	var out CreateCallResponse
-	status, _, err := s.t.do(ctx, req, &out)
+	status, err := s.t.do(ctx, req, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -100,22 +99,19 @@ func (s *CallsService) call(ctx context.Context, method, callID, suffix string, 
 	if callID == "" {
 		return nil, newValidationError("callID must not be empty")
 	}
-	req := request{method: method, path: "/v1/calls/" + url.PathEscape(callID) + suffix}
-	rc.apply(&req)
+	req := request{requestConfig: rc, method: method, path: "/v1/calls/" + url.PathEscape(callID) + suffix}
 	var out Call
-	if _, _, err := s.t.do(ctx, req, &out); err != nil {
+	if _, err := s.t.do(ctx, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// newUUID returns a random (version 4) UUID.
-func newUUID() (string, error) {
+// newUUID returns a random (version 4) UUID. crypto/rand.Read never fails on Go 1.24 and later.
+func newUUID() string {
 	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
+	_, _ = rand.Read(b[:])
 	b[6] = b[6]&0x0f | 0x40
 	b[8] = b[8]&0x3f | 0x80
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }

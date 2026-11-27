@@ -24,15 +24,15 @@ func TestNewClientAPIKeyResolution(t *testing.T) {
 
 	t.Setenv("YOLLA_API_KEY", "sk_env")
 	c, err := NewClient(WithAPIKey("sk_explicit"))
-	if err != nil || c.t.apiKey != "sk_explicit" {
+	if err != nil || c.Calls.t.apiKey != "sk_explicit" {
 		t.Fatalf("explicit key: %v, %v", c, err)
 	}
 	c, err = NewClient(WithAPIKey(""))
-	if err != nil || c.t.apiKey != "sk_env" {
+	if err != nil || c.Calls.t.apiKey != "sk_env" {
 		t.Fatalf("empty explicit key should fall back to env: %v", err)
 	}
 	c, err = NewClient()
-	if err != nil || c.t.apiKey != "sk_env" {
+	if err != nil || c.Calls.t.apiKey != "sk_env" {
 		t.Fatalf("env key: %v", err)
 	}
 }
@@ -49,12 +49,12 @@ func TestNewClientOptionValidation(t *testing.T) {
 		}
 	}
 	c, err := NewClient(WithAPIKey(testKey), WithTimeout(time.Second), WithMaxRetries(0), nil)
-	if err != nil || c.t.timeout != time.Second || c.t.maxRetries != 0 {
+	if err != nil || c.Calls.t.timeout != time.Second || c.Calls.t.maxRetries != 0 {
 		t.Fatalf("valid options: %v", err)
 	}
 	c, _ = NewClient(WithAPIKey(testKey))
-	if c.t.timeout != 30*time.Second || c.t.maxRetries != 2 {
-		t.Fatalf("defaults: %v %v", c.t.timeout, c.t.maxRetries)
+	if c.Calls.t.timeout != 30*time.Second || c.Calls.t.maxRetries != 2 {
+		t.Fatalf("defaults: %v %v", c.Calls.t.timeout, c.Calls.t.maxRetries)
 	}
 	if c.Calls == nil || c.Balance == nil || c.Pricing == nil || c.Webhooks == nil {
 		t.Fatal("services must be set")
@@ -64,17 +64,17 @@ func TestNewClientOptionValidation(t *testing.T) {
 func TestWebhookSecrets(t *testing.T) {
 	t.Setenv("YOLLA_WEBHOOK_SECRET", "")
 	c, err := NewClient(WithAPIKey(testKey))
-	if err != nil || len(c.webhookSecrets) != 0 {
-		t.Fatalf("no secret must be fine: %v %v", c.webhookSecrets, err)
+	if err != nil || len(c.Webhooks.secrets) != 0 {
+		t.Fatalf("no secret must be fine: %v %v", c.Webhooks.secrets, err)
 	}
 	t.Setenv("YOLLA_WEBHOOK_SECRET", "whsec_env")
 	c, _ = NewClient(WithAPIKey(testKey))
-	if len(c.webhookSecrets) != 1 || c.webhookSecrets[0] != "whsec_env" {
-		t.Fatalf("env secret: %v", c.webhookSecrets)
+	if len(c.Webhooks.secrets) != 1 || c.Webhooks.secrets[0] != "whsec_env" {
+		t.Fatalf("env secret: %v", c.Webhooks.secrets)
 	}
 	c, _ = NewClient(WithAPIKey(testKey), WithWebhookSecret("a", "b"))
-	if len(c.webhookSecrets) != 2 || len(c.Webhooks.secrets) != 2 || c.webhookSecrets[1] != "b" {
-		t.Fatalf("explicit secrets: %v", c.webhookSecrets)
+	if len(c.Webhooks.secrets) != 2 || c.Webhooks.secrets[1] != "b" {
+		t.Fatalf("explicit secrets: %v", c.Webhooks.secrets)
 	}
 }
 
@@ -83,13 +83,20 @@ func TestRedaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	h, err := c.Webhooks.NewHandler(WebhookHandlerConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := WebhookHandlerConfig{Secrets: []string{testSecret}}
 	var outs []string
-	for _, v := range []any{c, *c, c.t, *c.t, c.Balance, c.Calls, c.Webhooks} {
-		for _, f := range []string{"%v", "%+v", "%#v", "%s"} {
+	for _, v := range []any{c, *c, c.Calls.t, *c.Calls.t, c.Calls, *c.Calls, c.Balance, *c.Balance,
+		c.Pricing, *c.Pricing, c.Webhooks, *c.Webhooks, h, *h, cfg, &cfg} {
+		for _, f := range []string{"%v", "%+v", "%#v", "%s", "%d", "%x", "%X", "%q", "%T %[1]v"} {
 			outs = append(outs, fmt.Sprintf(f, v))
 		}
+		outs = append(outs, fmt.Sprint(v), fmt.Sprintln(v))
 	}
-	for _, v := range []any{c, *c} {
+	for _, v := range []any{c, *c, cfg, &cfg} {
 		b, err := json.Marshal(v)
 		if err != nil {
 			t.Fatal(err)
@@ -105,19 +112,14 @@ func TestRedaction(t *testing.T) {
 
 func TestRequestConfig(t *testing.T) {
 	c, err := newRequestConfig(nil)
-	if err != nil || c.timeout != 0 || c.maxRetries != nil || c.idempotencyKey != "" {
+	if err != nil || c.timeout != nil || c.maxRetries != nil || c.idempotencyKey != "" {
 		t.Fatalf("zero config: %+v %v", c, err)
 	}
 	c, err = newRequestConfig([]RequestOption{WithRequestTimeout(time.Second), WithRequestMaxRetries(0), WithIdempotencyKey("k"), nil})
-	if err != nil || c.timeout != time.Second || c.maxRetries == nil || *c.maxRetries != 0 || c.idempotencyKey != "k" {
+	if err != nil || c.timeout == nil || *c.timeout != time.Second || c.maxRetries == nil || *c.maxRetries != 0 || c.idempotencyKey != "k" {
 		t.Fatalf("config: %+v %v", c, err)
 	}
-	var r request
-	c.apply(&r)
-	if r.timeout != time.Second || r.maxRetries == nil || *r.maxRetries != 0 {
-		t.Fatalf("apply: %+v", r)
-	}
-	for _, o := range []RequestOption{WithRequestTimeout(-1), WithRequestMaxRetries(-1)} {
+	for _, o := range []RequestOption{WithRequestTimeout(-1), WithRequestTimeout(0), WithRequestMaxRetries(-1)} {
 		if _, err := newRequestConfig([]RequestOption{o}); !errors.Is(err, ErrValidation) {
 			t.Errorf("expected validation error, got %v", err)
 		}
@@ -156,6 +158,6 @@ func testClient(t *testing.T, rt http.RoundTripper) *Client {
 		t.Fatal(err)
 	}
 	sl := &sleeper{}
-	c.t.sleep = sl.sleep
+	c.Calls.t.sleep = sl.sleep
 	return c
 }

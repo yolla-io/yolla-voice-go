@@ -79,14 +79,14 @@ type RequestOption func(*requestConfig)
 
 // requestConfig is the result of applying RequestOptions.
 type requestConfig struct {
-	timeout        time.Duration // 0 = not set
-	maxRetries     *int          // nil = not set
-	idempotencyKey string        // "" = not set
+	timeout        *time.Duration // nil = not set
+	maxRetries     *int           // nil = not set
+	idempotencyKey string         // "" = not set
 }
 
 // WithRequestTimeout overrides the per-attempt timeout for one call. It must be positive.
 func WithRequestTimeout(d time.Duration) RequestOption {
-	return func(c *requestConfig) { c.timeout = d }
+	return func(c *requestConfig) { c.timeout = &d }
 }
 
 // WithRequestMaxRetries overrides the retry count for one call. It must not be negative.
@@ -107,19 +107,13 @@ func newRequestConfig(opts []RequestOption) (requestConfig, error) {
 			o(&c)
 		}
 	}
-	if c.timeout < 0 {
+	if c.timeout != nil && *c.timeout <= 0 {
 		return c, newValidationError("WithRequestTimeout: timeout must be positive")
 	}
 	if c.maxRetries != nil && *c.maxRetries < 0 {
 		return c, newValidationError("WithRequestMaxRetries: retries must not be negative")
 	}
 	return c, nil
-}
-
-// apply copies the per-request overrides into req.
-func (c requestConfig) apply(req *request) {
-	req.timeout = c.timeout
-	req.maxRetries = c.maxRetries
 }
 
 // Ptr returns a pointer to v, for optional parameters.

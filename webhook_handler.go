@@ -88,11 +88,22 @@ func NewWebhookHandler(cfg WebhookHandlerConfig) (*WebhookHandler, error) {
 	return h, nil
 }
 
-// String returns a redacted description, so secrets never reach logs.
-func (WebhookHandler) String() string { return "yollavoice.WebhookHandler{redacted}" }
+// Format implements fmt.Formatter with a redacted description for every verb, so secrets never
+// reach logs.
+func (WebhookHandler) Format(s fmt.State, _ rune) {
+	writeRedacted(s, "yollavoice.WebhookHandler{redacted}")
+}
 
-// GoString returns a redacted description.
-func (h WebhookHandler) GoString() string { return h.String() }
+const redactedHandlerConfig = "yollavoice.WebhookHandlerConfig{redacted}"
+
+// Format implements fmt.Formatter with a redacted description for every verb, so secrets never
+// reach logs.
+func (WebhookHandlerConfig) Format(s fmt.State, _ rune) { writeRedacted(s, redactedHandlerConfig) }
+
+// MarshalJSON returns a redacted JSON string.
+func (WebhookHandlerConfig) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + redactedHandlerConfig + `"`), nil
+}
 
 // NewHandler builds a webhook handler. When cfg.Secrets is empty it uses the client's webhook
 // secrets. See NewWebhookHandler.
@@ -164,9 +175,13 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // callSafely runs fn and turns a panic into an error that carries the panic value (no stack).
+// A panic with http.ErrAbortHandler is passed on, so it still aborts the connection.
 func callSafely(ctx context.Context, fn WebhookFunc, e Event) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
+			if p == http.ErrAbortHandler {
+				panic(p)
+			}
 			if pe, ok := p.(error); ok {
 				err = fmt.Errorf("yollavoice: webhook handler panicked: %w", pe)
 			} else {

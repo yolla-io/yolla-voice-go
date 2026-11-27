@@ -47,42 +47,40 @@ func newTransport(httpClient *http.Client, apiKey string, timeout time.Duration,
 		apiKey:     apiKey,
 		timeout:    timeout,
 		maxRetries: maxRetries,
-		userAgent:  "yolla-voice-go/" + Version + " go/" + runtime.Version(),
+		userAgent:  "yolla-voice-go/" + Version + " go/" + strings.TrimPrefix(runtime.Version(), "go"),
 		now:        time.Now,
 		sleep:      sleepContext,
 		rand:       rand.Float64,
 	}
 }
 
-// request is one API operation.
+// request is one API operation. The embedded requestConfig holds the per-call overrides.
 type request struct {
+	requestConfig
 	method string
 	path   string // already escaped, starts with "/"
 	query  url.Values
 	body   any         // JSON-encoded when non-nil
 	header http.Header // extra headers, set after the defaults
-
-	timeout    time.Duration // per-attempt override; 0 means the transport's
-	maxRetries *int          // override; nil means the transport's
 }
 
 // attemptResult is the outcome of one attempt.
 type attemptResult struct {
-	status     int
-	header     http.Header
-	err        error
-	retry      bool
-	retryAfter time.Duration // from Retry-After, already capped; 0 if absent
+	status        int
+	err           error
+	retry         bool
+	retryAfter    time.Duration // from Retry-After, already capped
+	hasRetryAfter bool          // a readable Retry-After was present
 }
 
 // do sends req with retries and decodes a 2xx JSON body into out (when out is non-nil). It returns the
-// status and headers of the last response, if any. Cancellation of ctx returns ctx.Err() unwrapped.
-func (t *transport) do(ctx context.Context, req request, out any) (int, http.Header, error) {
+// status of the last response, if any. Cancellation of ctx returns ctx.Err() unwrapped.
+func (t *transport) do(ctx context.Context, req request, out any) (int, error) {
 	var body []byte
 	if req.body != nil {
 		b, err := json.Marshal(req.body)
 		if err != nil {
-			return 0, nil, err
+			return 0, err
 		}
 		body = b
 	}
@@ -91,8 +89,8 @@ func (t *transport) do(ctx context.Context, req request, out any) (int, http.Hea
 		target += "?" + req.query.Encode()
 	}
 	timeout := t.timeout
-	if req.timeout != 0 {
-		timeout = req.timeout
+	if req.timeout != nil {
+		timeout = *req.timeout
 	}
 	maxRetries := t.maxRetries
 	if req.maxRetries != nil {
@@ -101,14 +99,14 @@ func (t *transport) do(ctx context.Context, req request, out any) (int, http.Hea
 
 	for attempt := 1; ; attempt++ {
 		if err := ctx.Err(); err != nil {
-			return 0, nil, err
+			return 0, err
 		}
 		r := t.attempt(ctx, req, target, body, timeout, out)
 		if r.err == nil || !r.retry || attempt > maxRetries {
-			return r.status, r.header, r.err
+			return r.status, r.err
 		}
-		if err := t.sleep(ctx, backoff(attempt, r.retryAfter, t.rand)); err != nil {
-			return 0, nil, err
+		if err := t.sleep(ctx, backoff(attempt, r.retryAfter, r.hasRetryAfter, t.rand)); err != nil {
+			return 0, err
 		}
 	}
 }
@@ -150,7 +148,7 @@ func (t *transport) attempt(ctx context.Context, req request, target string, bod
 	if err != nil {
 		return t.failure(ctx, actx, err)
 	}
-	r := attemptResult{status: resp.StatusCode, header: resp.Header}
+	r := attemptResult{status: resp.StatusCode}
 	jsonBody := isJSON(resp.Header.Get("Content-Type"))
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
@@ -167,7 +165,8 @@ func (t *transport) attempt(ctx context.Context, req request, target string, bod
 	r.err = apiErr
 	r.retry = resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 && resp.StatusCode <= 599
 	if r.retry {
-		r.retryAfter = min(parseRetryAfter(resp.Header.Get("Retry-After"), t.now()), maxRetryAfter)
+		r.retryAfter, r.hasRetryAfter = parseRetryAfter(resp.Header.Get("Retry-After"), t.now())
+		r.retryAfter = min(r.retryAfter, maxRetryAfter)
 		if apiErr.RetryAfter > 0 {
 			apiErr.RetryAfter = r.retryAfter
 		}
@@ -197,6 +196,8 @@ func decode(resp *http.Response, data []byte, jsonBody bool, out any) error {
 		cause = errors.New("response is not JSON")
 	case len(data) == 0:
 		cause = errors.New("empty response body")
+	case string(bytes.TrimSpace(data)) == "null":
+		cause = errors.New("response body is null")
 	default:
 		cause = json.Unmarshal(data, out)
 	}
