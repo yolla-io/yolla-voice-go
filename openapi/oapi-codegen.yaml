@@ -1,0 +1,25 @@
+# oapi-codegen configuration for types.gen.go. Run make gen; do not edit the output.
+package: yollavoice
+output: types.gen.go
+generate:
+  models: true
+compatibility:
+  always-prefix-enum-values: true
+output-options:
+  skip-prune: true
+  skip-enum-validate: true
+  prefer-skip-optional-pointer-on-container-types: true
+  name-normalizer: ToCamelCaseWithInitialisms
+  additional-initialisms: [SIP, RTT, MOS, ICE]
+  type-mapping:
+    number:
+      default: {type: float64}
+    string:
+      formats:
+        email: {type: string}
+        date: {type: string}
+        duration: {type: string}
+        uuid: {type: string}
+        binary: {type: string}
+  overlay:
+    path: openapi/oapi-codegen-overlay.yaml

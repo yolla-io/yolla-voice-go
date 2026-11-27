@@ -1,0 +1,27 @@
+# Applied by make gen to the OpenAPI 3.0 copy of the contract before generation.
+overlay: 1.0.0
+info:
+  title: Generated models
+  version: 1.0.0
+actions:
+  # Models come from component schemas only. Request parameters and bodies are
+  # hand-written in the SDK, so operations and the components only they use are
+  # removed before generation.
+  - target: $.paths.*
+    remove: true
+  - target: $.components.parameters
+    remove: true
+  - target: $.components.responses
+    remove: true
+  - target: $.components.pathItems
+    remove: true
+  # The SDK declares its own CallEvent, QualityEvent, BalanceEvent and
+  # TestEvent types, so the generated payload types get a Payload suffix.
+  - target: $.components.schemas.CallEvent
+    update: {x-go-name: CallEventPayload}
+  - target: $.components.schemas.QualityEvent
+    update: {x-go-name: QualityEventPayload}
+  - target: $.components.schemas.BalanceEvent
+    update: {x-go-name: BalanceEventPayload}
+  - target: $.components.schemas.TestEvent
+    update: {x-go-name: TestEventPayload}

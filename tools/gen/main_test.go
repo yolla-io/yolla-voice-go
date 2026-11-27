@@ -1,0 +1,191 @@
+package main
+
+import (
+	"reflect"
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
+
+func parse(t *testing.T, src string) map[string]any {
+	t.Helper()
+	var doc map[string]any
+	if err := yaml.Unmarshal([]byte(src), &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
+func schema(t *testing.T, doc map[string]any, path ...string) any {
+	t.Helper()
+	var node any = doc
+	for _, key := range path {
+		m, ok := node.(map[string]any)
+		if !ok {
+			t.Fatalf("path %v: %T is not a map at %q", path, node, key)
+		}
+		node = m[key]
+	}
+	return node
+}
+
+const doc31 = `openapi: 3.1.0
+info: {title: T, version: '1'}
+paths:
+  /v1/x:
+    get:
+      responses:
+        '200':
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next: {type: [string, 'null']}
+webhooks:
+  x.happened: {$ref: '#/components/pathItems/X'}
+components:
+  pathItems:
+    X:
+      post:
+        responses:
+          '2XX': {description: Response}
+  schemas:
+    Money:
+      type: object
+      required: [amount]
+      properties:
+        amount: {type: string, pattern: '^[0-9]+$'}
+    Call:
+      type: object
+      properties:
+        endedAt: {type: [string, 'null'], format: date-time}
+        duration: {type: [integer, 'null']}
+        price:
+          oneOf:
+            - {$ref: '#/components/schemas/Money'}
+            - {type: 'null'}
+        status: {type: string, const: created}
+    Named:
+      type: object
+      properties:
+        type: {type: string}
+        const: {type: string}
+        oneOf: {type: integer}
+`
+
+func TestDownconvertNullableTypeList(t *testing.T) {
+	out, err := downconvert(parse(t, doc31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := schema(t, out, "components", "schemas", "Call", "properties", "endedAt")
+	want := map[string]any{"type": "string", "nullable": true, "format": "date-time"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("endedAt = %#v, want %#v", got, want)
+	}
+	got = schema(t, out, "components", "schemas", "Call", "properties", "duration")
+	want = map[string]any{"type": "integer", "nullable": true}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("duration = %#v, want %#v", got, want)
+	}
+	// Schemas outside components are converted too.
+	got = schema(t, out, "paths", "/v1/x", "get", "responses", "200", "content", "application/json", "schema",
+		"properties", "next")
+	want = map[string]any{"type": "string", "nullable": true}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("next = %#v, want %#v", got, want)
+	}
+}
+
+func TestDownconvertNullableOneOf(t *testing.T) {
+	out, err := downconvert(parse(t, doc31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := schema(t, out, "components", "schemas", "Call", "properties", "price")
+	want := map[string]any{
+		"allOf":    []any{map[string]any{"$ref": "#/components/schemas/Money"}},
+		"nullable": true,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("price = %#v, want %#v", got, want)
+	}
+}
+
+func TestDownconvertConst(t *testing.T) {
+	out, err := downconvert(parse(t, doc31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := schema(t, out, "components", "schemas", "Call", "properties", "status")
+	want := map[string]any{"type": "string", "enum": []any{"created"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("status = %#v, want %#v", got, want)
+	}
+}
+
+func TestDownconvertVersionAndWebhooks(t *testing.T) {
+	out, err := downconvert(parse(t, doc31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["openapi"] != "3.0.3" {
+		t.Fatalf("openapi = %v, want 3.0.3", out["openapi"])
+	}
+	if _, ok := out["webhooks"]; ok {
+		t.Fatal("webhooks section is not dropped")
+	}
+	if schema(t, out, "components", "pathItems", "X") == nil {
+		t.Fatal("components used by webhooks are dropped")
+	}
+}
+
+func TestDownconvertLeavesOtherComponentsAlone(t *testing.T) {
+	in := parse(t, doc31)
+	orig := parse(t, doc31)
+	out, err := downconvert(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(in, orig) {
+		t.Fatal("downconvert modified its input")
+	}
+	for _, name := range []string{"Money", "Named"} {
+		got := schema(t, out, "components", "schemas", name)
+		want := schema(t, orig, "components", "schemas", name)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s = %#v, want unchanged %#v", name, got, want)
+		}
+	}
+	if !reflect.DeepEqual(out["info"], orig["info"]) {
+		t.Fatal("info changed")
+	}
+}
+
+func TestDownconvertRejectsUnsupportedTypeList(t *testing.T) {
+	src := strings.Replace(doc31, "duration: {type: [integer, 'null']}",
+		"duration: {type: [integer, string]}", 1)
+	if _, err := downconvert(parse(t, src)); err == nil || !strings.Contains(err.Error(), "type") {
+		t.Fatalf("err = %v, want an error about the type list", err)
+	}
+}
+
+func TestRewriteHeader(t *testing.T) {
+	code := "// Package yollavoice provides primitives to interact with the openapi HTTP API.\n" +
+		"//\n// Code generated by x version (devel) DO NOT EDIT.\npackage yollavoice\n\ntype A string\n"
+	got, err := rewriteHeader(code, "v2.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "// Code generated by oapi-codegen v2.9.0 from openapi/partner-api.yaml with make gen. DO NOT EDIT.\n\n" +
+		"package yollavoice\n\ntype A string\n"
+	if got != want {
+		t.Fatalf("got\n%s\nwant\n%s", got, want)
+	}
+	if _, err := rewriteHeader("type A string\n", "v1"); err == nil {
+		t.Fatal("no error for code without a package clause")
+	}
+}

@@ -1,0 +1,12 @@
+{
+  "id": "call_01JD7Z3Q8X4M2N6P9R5T1V3W7Y",
+  "status": "transferred",
+  "to": "4915112345678",
+  "from": "4930123456",
+  "externalUserId": "user-42",
+  "createdAt": "2026-11-27T10:00:00Z",
+  "expiresAt": "2026-11-27T10:05:00Z",
+  "price": {"amount": "0.25", "currency": "EUR"},
+  "endReason": "callee_hangup",
+  "recordingUrl": "https://example.com/r/1"
+}
