@@ -1,0 +1,197 @@
+{
+  "secret": "whsec_test",
+  "timestamp": 1792491675,
+  "crossCheck": {
+    "body": "{\n  \"id\": \"evt_01JDP9T4K7M2N5Q8R1S3V6X9Z0\",\n  \"type\": \"webhook.test\",\n  \"seq\": 0,\n  \"createdAt\": \"2026-11-23T10:15:00.000Z\",\n  \"data\": {}\n}",
+    "signature": "v1=4d3d992e98344c6dbe68bee8fe60bef095512d6d90845e6f88bc84948088d933"
+  },
+  "events": [
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K91",
+      "type": "call.initiated",
+      "seq": 1,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "initiated",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K92",
+      "type": "call.answered",
+      "seq": 2,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "answered",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K93",
+      "type": "call.held",
+      "seq": 3,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "answered",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        },
+        "hold": {
+          "action": "hold",
+          "initiator": "client",
+          "leg": "caller"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K94",
+      "type": "call.unheld",
+      "seq": 4,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "answered",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        },
+        "hold": {
+          "action": "unhold",
+          "initiator": "server",
+          "leg": "callee"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K95",
+      "type": "call.hold_failed",
+      "seq": 5,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "answered",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        },
+        "hold": {
+          "action": "hold",
+          "initiator": "client",
+          "leg": "caller"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K96",
+      "type": "call.completed",
+      "seq": 6,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "completed",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K97",
+      "type": "call.expired",
+      "seq": 7,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "call": {
+          "id": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+          "status": "expired",
+          "onHold": false,
+          "to": "4915112345678",
+          "from": "4930123456",
+          "externalUserId": "user-42",
+          "createdAt": "2026-11-23T10:00:00.000Z",
+          "expiresAt": "2026-11-23T10:05:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K98",
+      "type": "call.quality",
+      "seq": 8,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "callId": "call_01JDPA0B1C2D3E4F5G6H7J8K9N",
+        "externalUserId": "user-42",
+        "quality": {
+          "mosEstimate": 4.1,
+          "mosMin": 3.6,
+          "rttMsAvg": 42.5,
+          "packetLossPct": 0.3,
+          "jitterMsAvg": 6.2,
+          "network": "wifi",
+          "warnings": [
+            "high_jitter"
+          ]
+        }
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K99",
+      "type": "balance.low",
+      "seq": 9,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {
+        "balance": {
+          "amount": "3.200000",
+          "currency": "EUR"
+        },
+        "available": {
+          "amount": "2.500000",
+          "currency": "EUR"
+        },
+        "billingMode": "prepaid",
+        "creditLimit": null
+      }
+    },
+    {
+      "id": "evt_01JDPA0B1C2D3E4F5G6H7J8K910",
+      "type": "webhook.test",
+      "seq": 0,
+      "createdAt": "2026-11-23T10:15:00.000Z",
+      "data": {}
+    }
+  ]
+}

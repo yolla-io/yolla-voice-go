@@ -2,6 +2,7 @@ package yollavoice
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"time"
 )
@@ -90,3 +91,24 @@ func (WebhooksService) String() string { return redacted }
 
 // GoString returns a redacted description.
 func (WebhooksService) GoString() string { return redacted }
+
+// Verify checks a webhook request with the client's webhook secrets (or YOLLA_WEBHOOK_SECRET, which
+// the client read when it was created). It returns an error when the client has no secret. See
+// VerifyWebhook.
+func (w *WebhooksService) Verify(body []byte, header http.Header, opts ...VerifyOption) (Event, error) {
+	secrets, err := resolveSecrets(w.secrets)
+	if err != nil {
+		return nil, err
+	}
+	return VerifyWebhook(body, header, secrets, opts...)
+}
+
+// Sign signs a payload for tests with the client's first webhook secret. It returns an error when
+// the client has no secret. See SignWebhook.
+func (w *WebhooksService) Sign(payload any, opts ...SignOption) ([]byte, http.Header, error) {
+	secrets, err := resolveSecrets(w.secrets)
+	if err != nil {
+		return nil, nil, err
+	}
+	return SignWebhook(payload, secrets[0], opts...)
+}
