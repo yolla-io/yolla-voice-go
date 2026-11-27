@@ -1,0 +1,12 @@
+# Coverage
+coverage.out
+*.coverprofile
+# Build output
+dist/
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+# Local agent settings
+.claude/settings.local.json
