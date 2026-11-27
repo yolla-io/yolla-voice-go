@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.26", "1.27"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - run: make check
+      - if: matrix.go == '1.27'
+        run: make check-gen
+      - if: matrix.go == '1.27'
+        run: make check-public
+      - if: matrix.go == '1.27'
+        run: make check-deps

@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+      - run: make check
+      - run: make check-gen
+      - run: make check-public
+      - run: make check-deps
+      - name: Verify tag matches Version
+        run: make release-check TAG="$GITHUB_REF_NAME"
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd tools && go run ./releasenotes "$GITHUB_REF_NAME" ..) > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+      # Asking the module proxy for the version makes pkg.go.dev index it.
+      - name: Request the version from the Go module proxy
+        run: curl --fail --silent --show-error --retry 3 "https://proxy.golang.org/github.com/yolla-io/yolla-voice-go/@v/${GITHUB_REF_NAME}.info"

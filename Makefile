@@ -1,4 +1,4 @@
-.PHONY: check gen check-gen check-public check-deps sync-contract
+.PHONY: check gen check-gen check-public check-deps sync-contract release-check
 
 COVERAGE_MIN := 90
 COVERPROFILE := $(or $(TMPDIR),/tmp)/yollavoice-coverage.out
@@ -33,3 +33,11 @@ check-deps:
 sync-contract:
 	@test -n "$(SRC)" || { echo "usage: make sync-contract SRC=<path to openapi.yaml>"; exit 1; }
 	cd tools && go run ./synccontract "$(abspath $(SRC))" "$(abspath openapi/partner-api.yaml)"
+
+# Usage: make release-check TAG=vX.Y.Z; fails unless the tag equals "v" plus Version in version.go.
+release-check:
+	@test -n "$(TAG)" || { echo "usage: make release-check TAG=vX.Y.Z"; exit 1; }
+	@version=$$(sed -n 's/^const Version = "\(.*\)"$$/\1/p' version.go); \
+	test -n "$$version" || { echo "release-check: cannot read Version from version.go"; exit 1; }; \
+	test "$(TAG)" = "v$$version" || { echo "release-check: tag $(TAG) does not match Version v$$version"; exit 1; }; \
+	echo "release-check: $(TAG) matches Version"
