@@ -89,12 +89,14 @@ func VerifyWebhook(body []byte, header http.Header, secrets []string, opts ...Ve
 	if ts == "" || sig == "" {
 		return nil, &WebhookVerificationError{Reason: ReasonMissingHeader}
 	}
-	stale := &WebhookVerificationError{Reason: ReasonStaleTimestamp}
+	// A timestamp that is not all digits is a malformed header, as in Node.
 	for _, r := range ts {
 		if r < '0' || r > '9' {
-			return nil, stale
+			return nil, &WebhookVerificationError{Reason: ReasonMissingHeader}
 		}
 	}
+	// A digit string too large for int64 is far from now, so it is stale.
+	stale := &WebhookVerificationError{Reason: ReasonStaleTimestamp}
 	sec, err := strconv.ParseInt(ts, 10, 64)
 	if err != nil {
 		return nil, stale

@@ -12,40 +12,6 @@ const (
 	BalanceBillingModePrepaid  BalanceBillingMode = "prepaid"
 )
 
-// Defines values for BalanceEventType.
-const (
-	BalanceEventTypeBalanceLow BalanceEventType = "balance.low"
-)
-
-// Defines values for CallEventDataHoldAction.
-const (
-	CallEventDataHoldActionHold   CallEventDataHoldAction = "hold"
-	CallEventDataHoldActionUnhold CallEventDataHoldAction = "unhold"
-)
-
-// Defines values for CallEventDataHoldInitiator.
-const (
-	CallEventDataHoldInitiatorClient CallEventDataHoldInitiator = "client"
-	CallEventDataHoldInitiatorServer CallEventDataHoldInitiator = "server"
-)
-
-// Defines values for CallEventDataHoldLeg.
-const (
-	CallEventDataHoldLegCallee CallEventDataHoldLeg = "callee"
-	CallEventDataHoldLegCaller CallEventDataHoldLeg = "caller"
-)
-
-// Defines values for CallEventType.
-const (
-	CallEventTypeCallAnswered   CallEventType = "call.answered"
-	CallEventTypeCallCompleted  CallEventType = "call.completed"
-	CallEventTypeCallExpired    CallEventType = "call.expired"
-	CallEventTypeCallHeld       CallEventType = "call.held"
-	CallEventTypeCallHoldFailed CallEventType = "call.hold_failed"
-	CallEventTypeCallInitiated  CallEventType = "call.initiated"
-	CallEventTypeCallUnheld     CallEventType = "call.unheld"
-)
-
 // Defines values for CallStatus.
 const (
 	CallStatusAnswered  CallStatus = "answered"
@@ -82,11 +48,6 @@ const (
 	EndReasonUnknown          EndReason = "unknown"
 )
 
-// Defines values for QualityEventType.
-const (
-	QualityEventTypeCallQuality QualityEventType = "call.quality"
-)
-
 // Defines values for QualitySummaryICECandidateType.
 const (
 	QualitySummaryICECandidateTypeHost  QualitySummaryICECandidateType = "host"
@@ -102,16 +63,6 @@ const (
 	QualitySummaryNetworkWired    QualitySummaryNetwork = "wired"
 )
 
-// Defines values for TestEventSeq.
-const (
-	TestEventSeqN0 TestEventSeq = 0
-)
-
-// Defines values for TestEventType.
-const (
-	TestEventTypeWebhookTest TestEventType = "webhook.test"
-)
-
 // Balance defines model for Balance.
 type Balance struct {
 	Available   Money              `json:"available"`
@@ -122,18 +73,6 @@ type Balance struct {
 
 // BalanceBillingMode defines model for Balance.BillingMode.
 type BalanceBillingMode string
-
-// BalanceEventPayload defines model for BalanceEvent.
-type BalanceEventPayload struct {
-	CreatedAt time.Time        `json:"createdAt"`
-	Data      Balance          `json:"data"`
-	ID        string           `json:"id"`
-	Seq       int              `json:"seq"`
-	Type      BalanceEventType `json:"type"`
-}
-
-// BalanceEventType defines model for BalanceEvent.Type.
-type BalanceEventType string
 
 // Call defines model for Call.
 type Call struct {
@@ -160,45 +99,8 @@ type Call struct {
 	To             Destination       `json:"to"`
 }
 
-// CallEventPayload defines model for CallEvent.
-type CallEventPayload struct {
-	CreatedAt time.Time `json:"createdAt"`
-	Data      struct {
-		Call Call `json:"call"`
-		Hold *struct {
-			Action    *CallEventDataHoldAction    `json:"action,omitempty"`
-			Initiator *CallEventDataHoldInitiator `json:"initiator,omitempty"`
-			Leg       *CallEventDataHoldLeg       `json:"leg,omitempty"`
-		} `json:"hold,omitempty"`
-	} `json:"data"`
-	ID   string        `json:"id"`
-	Seq  int           `json:"seq"`
-	Type CallEventType `json:"type"`
-}
-
-// CallEventDataHoldAction defines model for CallEvent.Data.Hold.Action.
-type CallEventDataHoldAction string
-
-// CallEventDataHoldInitiator defines model for CallEvent.Data.Hold.Initiator.
-type CallEventDataHoldInitiator string
-
-// CallEventDataHoldLeg defines model for CallEvent.Data.Hold.Leg.
-type CallEventDataHoldLeg string
-
-// CallEventType defines model for CallEvent.Type.
-type CallEventType string
-
 // CallStatus defines model for CallStatus.
 type CallStatus string
-
-// CreateCallRequest defines model for CreateCallRequest.
-type CreateCallRequest struct {
-	CustomParams   map[string]string `json:"customParams,omitempty"`
-	ExternalUserID string            `json:"externalUserId"`
-	From           *E164             `json:"from,omitempty"`
-	MaxDuration    *int              `json:"maxDuration,omitempty"`
-	To             Destination       `json:"to"`
-}
 
 // CreateCallResponse defines model for CreateCallResponse.
 type CreateCallResponse struct {
@@ -225,27 +127,6 @@ type E164 = string
 // EndReason defines model for EndReason.
 type EndReason string
 
-// ErrorBody defines model for ErrorBody.
-type ErrorBody struct {
-	Code      string  `json:"code"`
-	Message   string  `json:"message"`
-	MoreInfo  *string `json:"moreInfo,omitempty"`
-	RequestID string  `json:"requestId"`
-}
-
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Error ErrorBody `json:"error"`
-}
-
-// EventEnvelope defines model for EventEnvelope.
-type EventEnvelope struct {
-	CreatedAt time.Time `json:"createdAt"`
-	ID        string    `json:"id"`
-	Seq       int       `json:"seq"`
-	Type      string    `json:"type"`
-}
-
 // Money defines model for Money.
 type Money struct {
 	Amount   string `json:"amount"`
@@ -258,22 +139,6 @@ type NumberPrice struct {
 	Number  Destination `json:"number"`
 	Rate    Rate        `json:"rate"`
 }
-
-// QualityEventPayload defines model for QualityEvent.
-type QualityEventPayload struct {
-	CreatedAt time.Time `json:"createdAt"`
-	Data      struct {
-		CallID         string         `json:"callId"`
-		ExternalUserID string         `json:"externalUserId"`
-		Quality        QualitySummary `json:"quality"`
-	} `json:"data"`
-	ID   string           `json:"id"`
-	Seq  int              `json:"seq"`
-	Type QualityEventType `json:"type"`
-}
-
-// QualityEventType defines model for QualityEvent.Type.
-type QualityEventType string
 
 // QualitySummary defines model for QualitySummary.
 type QualitySummary struct {
@@ -300,18 +165,3 @@ type Rate struct {
 	PerMinute         Money  `json:"perMinute"`
 	Prefix            string `json:"prefix"`
 }
-
-// TestEventPayload defines model for TestEvent.
-type TestEventPayload struct {
-	CreatedAt time.Time      `json:"createdAt"`
-	Data      map[string]any `json:"data"`
-	ID        string         `json:"id"`
-	Seq       TestEventSeq   `json:"seq"`
-	Type      TestEventType  `json:"type"`
-}
-
-// TestEventSeq defines model for TestEvent.Seq.
-type TestEventSeq int
-
-// TestEventType defines model for TestEvent.Type.
-type TestEventType string

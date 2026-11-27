@@ -275,13 +275,13 @@ func main() {
 
 The handler answers:
 
-| Status | When                                                              |
-| ------ | ----------------------------------------------------------------- |
-| 200    | the event is verified and your function returned `nil`            |
-| 401    | bad signature, missing header, stale timestamp or invalid payload |
-| 405    | the method is not `POST` (the `Allow` header says `POST`)         |
-| 413    | the body is over 1 MiB (`MaxBodyBytes`)                           |
-| 500    | your function returned an error or panicked; or the request body could not be read |
+| Status | When                                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------------------- |
+| 200    | the event is verified and your function returned `nil`, or no function matches and `OnUnhandled` is nil |
+| 401    | bad signature, missing header, stale timestamp or invalid payload                                       |
+| 405    | the method is not `POST` (the `Allow` header says `POST`)                                               |
+| 413    | the body is over 1 MiB (`MaxBodyBytes`)                                                                 |
+| 500    | your function returned an error or panicked; or the request body could not be read                      |
 
 On a 200 the body is `{"received":true}`. `OnError` receives the real error of every 401 (a
 `*WebhookVerificationError` with its `Reason`: log it to find a wrong secret or clock skew) and of every 500.
@@ -337,7 +337,8 @@ Every event has `ID()`, `Type()`, `Seq()` and `CreatedAt()`. All `call.*` types 
 - **Order.** Deliveries can arrive out of order. For `*CallEvent`, `Seq()` orders the events of one call: apply
   the event only if its `Seq()` is greater than the last one you stored. `Seq()` is 0 for `call.quality`,
   `balance.low` and `webhook.test`.
-- **Answer fast.** Store the event and return `nil`, then do slow work in a queue.
+- **Answer fast.** Store the event and return `nil`, then do slow work in a queue. `json.Marshal(e)` writes the
+  event in its wire shape (id, type, seq, createdAt, data), and `ParseWebhookEvent` reads it back.
 - **Secret rotation.** Rotate the secret in the dashboard. The new secret works immediately. During your own
   switch, pass both: `Secrets: []string{newSecret, oldSecret}` (or `WithWebhookSecret(newSecret, oldSecret)`).
   A signature matching any of them is accepted. Remove the old one when done.

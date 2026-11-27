@@ -99,7 +99,7 @@ func TestVerifyFixtures(t *testing.T) {
 			if (wantTypes[i] == EventCallHeld || wantTypes[i] == EventCallUnheld || wantTypes[i] == EventCallHoldFailed) != (e.Data.Hold != nil) {
 				t.Fatalf("%s: hold %+v", wantTypes[i], e.Data.Hold)
 			}
-			if wantTypes[i] == EventCallHeld && (*e.Data.Hold.Action != CallEventDataHoldActionHold || *e.Data.Hold.Leg != CallEventDataHoldLegCaller) {
+			if wantTypes[i] == EventCallHeld && (*e.Data.Hold.Action != HoldActionHold || *e.Data.Hold.Leg != HoldLegCaller) {
 				t.Fatalf("hold %+v", e.Data.Hold)
 			}
 		case *QualityEvent:
@@ -222,14 +222,19 @@ func TestVerifyTimestamp(t *testing.T) {
 		}
 	}
 	h := signedHeader("s", 10000, body)
-	for _, bad := range []string{"abc", "-5", "1.5", "+1", "0x10", "99999999999999999999"} {
+	// Non-digit timestamps are malformed headers, as in Node.
+	for _, bad := range []string{"abc", "-5", "1.5", "+1", "+1000", "1e3", "0x10"} {
 		h.Set("X-Voice-Timestamp", bad)
 		_, err := VerifyWebhook(body, h, []string{"s"})
-		wantReason(t, err, ReasonStaleTimestamp)
+		wantReason(t, err, ReasonMissingHeader)
 	}
+	// A digit string beyond int64 is a number far from now.
+	h.Set("X-Voice-Timestamp", "99999999999999999999")
+	_, err := VerifyWebhook(body, h, []string{"s"})
+	wantReason(t, err, ReasonStaleTimestamp)
 	// 9 minutes old passes only with a larger tolerance.
 	old := signedHeader("s", 10000-540, body)
-	_, err := VerifyWebhook(body, old, []string{"s"})
+	_, err = VerifyWebhook(body, old, []string{"s"})
 	wantReason(t, err, ReasonStaleTimestamp)
 	if _, err := VerifyWebhook(body, old, []string{"s"}, WithTolerance(10*time.Minute)); err != nil {
 		t.Fatal(err)

@@ -15,13 +15,22 @@ actions:
     remove: true
   - target: $.components.pathItems
     remove: true
-  # The SDK declares its own CallEvent, QualityEvent, BalanceEvent and
-  # TestEvent types, so the generated payload types get a Payload suffix.
+  # Request bodies, error bodies and webhook events are hand-written in the SDK
+  # (CreateCallParams, APIError, the Event types), so their schemas are removed
+  # to keep a single public type for each.
+  - target: $.components.schemas.CreateCallRequest
+    remove: true
+  - target: $.components.schemas.ErrorBody
+    remove: true
+  - target: $.components.schemas.ErrorResponse
+    remove: true
+  - target: $.components.schemas.EventEnvelope
+    remove: true
   - target: $.components.schemas.CallEvent
-    update: {x-go-name: CallEventPayload}
+    remove: true
   - target: $.components.schemas.QualityEvent
-    update: {x-go-name: QualityEventPayload}
+    remove: true
   - target: $.components.schemas.BalanceEvent
-    update: {x-go-name: BalanceEventPayload}
+    remove: true
   - target: $.components.schemas.TestEvent
-    update: {x-go-name: TestEventPayload}
+    remove: true
