@@ -29,4 +29,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
       # Asking the module proxy for the version makes pkg.go.dev index it.
       - name: Request the version from the Go module proxy
+        continue-on-error: true
         run: curl --fail --silent --show-error --retry 3 "https://proxy.golang.org/github.com/yolla-io/yolla-voice-go/@v/${GITHUB_REF_NAME}.info"
