@@ -2,11 +2,13 @@ package yollavoice
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func loadContract(t *testing.T) map[string]any {
@@ -63,4 +65,35 @@ func TestCreateCallParamsMatchContract(t *testing.T) {
 			t.Errorf("%s: required=%v omitempty=%q", name, required[name], opts)
 		}
 	}
+}
+
+func TestListCallsContract(t *testing.T) {
+	doc := loadContract(t)
+	op := doc["paths"].(map[string]any)["/v1/calls"].(map[string]any)["get"].(map[string]any)
+	var want []string
+	for _, p := range op["parameters"].([]any) {
+		param := p.(map[string]any)
+		if param["in"] == "query" {
+			want = append(want, param["name"].(string))
+		}
+	}
+	sort.Strings(want)
+	full := ListCallsParams{Status: CallStatusAnswered, ExternalUserID: "u", From: time.Now(), To: time.Now(), Limit: 1, Cursor: "c"}
+	got := sortedKeys(toAnyMap(listQuery(full)))
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ListCallsParams sends %v, contract has %v", got, want)
+	}
+	schema := op["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	wantProps := sortedKeys(schema["properties"].(map[string]any))
+	if gotProps := jsonTags(reflect.TypeOf(listCallsResponse{})); !reflect.DeepEqual(gotProps, wantProps) {
+		t.Fatalf("listCallsResponse tags %v, contract properties %v", gotProps, wantProps)
+	}
+}
+
+func toAnyMap(v url.Values) map[string]any {
+	m := map[string]any{}
+	for k := range v {
+		m[k] = true
+	}
+	return m
 }
