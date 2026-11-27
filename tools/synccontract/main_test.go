@@ -167,14 +167,14 @@ func TestDeterministicAndHeader(t *testing.T) {
 }
 
 func TestCyrillicFails(t *testing.T) {
-	src := strings.Replace(sample, "enum-placeholder", "", 1) + "  x:\n    Foo: { type: string, title: Привет }\n"
+	src := strings.Replace(sample, "enum-placeholder", "", 1) + "  x:\n    Foo: { type: string, title: \u041f\u0440\u0438\u0432\u0435\u0442 }\n"
 	if _, err := render([]byte(src), "abc", "2026-01-02"); err == nil || !strings.Contains(err.Error(), "Cyrillic") {
 		t.Errorf("expected Cyrillic error, got %v", err)
 	}
 }
 
 func TestCyrillicInProseIsStripped(t *testing.T) {
-	src := strings.Replace(sample, "description: prose", "description: Привет", 1)
+	src := strings.Replace(sample, "description: prose", "description: \u041f\u0440\u0438\u0432\u0435\u0442", 1)
 	if _, err := render([]byte(src), "abc", "2026-01-02"); err != nil {
 		t.Errorf("stripped Cyrillic prose must not fail: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestCyrillicInProseIsStripped(t *testing.T) {
 func TestMainDoesNotWriteOnFailure(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.yaml")
-	if _, err := render([]byte(strings.Replace(sample, "type: string, description: a field", "type: Привет, description: a field", 1)), "c", "d"); err == nil {
+	if _, err := render([]byte(strings.Replace(sample, "type: string, description: a field", "type: \u041f\u0440\u0438\u0432\u0435\u0442, description: a field", 1)), "c", "d"); err == nil {
 		t.Fatal("expected error")
 	}
 	if _, err := os.Stat(out); err == nil {
